@@ -17,9 +17,17 @@ export const usePoseDetection = (videoRef) => {
   const requestRef = useRef();
   const lastSentTime = useRef(0);
 
+  // 🔥 중요: useEffect 내부 함수들이 최신 isActive 상태를 참조할 수 있도록 Ref 사용
+  const isActiveRef = useRef(false);
+
+  // isActive 상태가 바뀔 때마다 Ref 업데이트
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
+
   const onResults = async (results) => {
-    // 웹캠이 활성화된 상태에서만 로직 실행
-    if (results.poseLandmarks && isActive) {
+    // 웹캠이 활성화된 상태에서만 로직 실행 (Ref로 체크)
+    if (results.poseLandmarks && isActiveRef.current) {
       const analysis = analyzePosture(results.poseLandmarks);
       setPostureData(analysis);
 
@@ -38,13 +46,15 @@ export const usePoseDetection = (videoRef) => {
   };
 
   const detect = async () => {
-    if (isActive && videoRef.current && videoRef.current.readyState === 4) {
+    // isActive가 true일 때만 실제로 AI 연산(sendToPose) 수행
+    if (isActiveRef.current && videoRef.current && videoRef.current.readyState === 4) {
       await sendToPose(videoRef.current);
     }
     requestRef.current = requestAnimationFrame(detect);
   };
 
   useEffect(() => {
+    // MediaPipe 초기화
     const poseInstance = initializePose(onResults);
 
     const scheduleNextCheck = () => {
@@ -57,19 +67,21 @@ export const usePoseDetection = (videoRef) => {
         setIsActive(false);
         console.log("=== 자세 검사 종료 (대기 모드 진입) ===");
         
-        // 1시간 후 다시 실행 예약
+        // 1시간 후 다시 실행 예약 (재귀적 호출)
         setTimeout(scheduleNextCheck, SETTINGS.CHECK_INTERVAL); 
       }, SETTINGS.CHECK_DURATION);
     };
 
+    // 최초 실행
     scheduleNextCheck();
     detect();
 
+    // 언마운트 시 정리
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       poseInstance.close();
     };
-  }, [isActive]);
+  }, []); // 🔥 의존성 배열을 비워야 타이머가 중복 생성되지 않습니다.
 
   return { ...postureData, isActive };
 };
