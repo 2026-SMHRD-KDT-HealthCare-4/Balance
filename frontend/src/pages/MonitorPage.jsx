@@ -1,86 +1,47 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { usePoseDetection } from '../hooks/usePoseDetection';
+import WebcamView from '../components/WebcamView';
 
 const MonitorPage = () => {
   const videoRef = useRef(null);
   
-  // 정면 분석용 데이터 꺼내기
-  const { angle, shoulderDiff, forwardRatio, status } = usePoseDetection(videoRef);
-
-  useEffect(() => {
-    const startWebcam = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error("웹캠 에러:", error);
-      }
-    };
-    startWebcam();
-
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach(track => track.stop());
-      }
-    };
-  }, []);
+  // isActive 상태를 추가로 받아옵니다.
+  const { angle, status, isActive } = usePoseDetection(videoRef);
 
   return (
     <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h2>정면 자세 모니터링</h2>
+      <h2>자세 모니터링 시스템</h2>
       
-      <div style={{ position: 'relative', display: 'inline-block' }}>
-        {/* 거울처럼 보이도록 transform scaleX(-1) 적용 */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          style={{
-            width: '640px',
-            height: '480px',
-            borderRadius: '10px',
-            backgroundColor: '#000',
-            objectFit: 'cover',
-            transform: 'scaleX(-1)' 
-          }}
-        />
-      </div>
-
-      <div style={{ 
-        marginTop: '20px', 
-        fontSize: '1.1rem', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '8px',
-        alignItems: 'center'
-      }}>
-        <p>📐 <strong>목 꺾임 각도:</strong> {angle}° (좌우)</p>
-        <p>⚖️ <strong>어깨 비대칭도:</strong> {shoulderDiff} (높낮이 차이)</p>
-        <p>🐢 <strong>전진(거북목) 지수:</strong> {forwardRatio} (Z축 깊이)</p>
-        
-        <div style={{ 
-          marginTop: '10px', 
-          padding: '10px 20px', 
-          borderRadius: '8px',
-          backgroundColor: status === '위험' ? '#ffebee' : status === '주의' ? '#fff8e1' : '#e8f5e9'
-        }}>
-          <strong>종합 상태: </strong> 
-          <span style={{ 
-            color: status === '위험' ? '#d32f2f' : status === '주의' ? '#f57c00' : '#388e3c',
-            fontWeight: 'bold',
-            fontSize: '1.3rem'
-          }}>
-            {status}
-          </span>
+      {isActive ? (
+        <div>
+          <div style={{ color: 'blue', fontWeight: 'bold', marginBottom: '10px' }}>
+            🔵 현재 자세 검사 중입니다... (1분간 진행)
+          </div>
+          <WebcamView videoRef={videoRef} />
+          
+          <div style={{ marginTop: '20px' }}>
+            <p>📐 현재 각도: {angle}°</p>
+            <p>상태: <strong>{status}</strong></p>
+          </div>
         </div>
-      </div>
-      
-      <div style={{ color: '#666', fontSize: '0.9rem', marginTop: '15px' }}>
-        * 카메라를 정면으로 바라보고 평소처럼 모니터를 보듯 앉아주세요.
-      </div>
+      ) : (
+        <div style={{ 
+          height: '480px', 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center',
+          backgroundColor: '#f0f0f0',
+          borderRadius: '10px'
+        }}>
+          <p style={{ fontSize: '1.2rem', color: '#666' }}>
+            🔒 현재는 모니터링 휴식 시간입니다.
+          </p>
+          <p style={{ fontSize: '0.9rem', color: '#999' }}>
+            다음 검사 시간에 자동으로 웹캠이 켜집니다.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
