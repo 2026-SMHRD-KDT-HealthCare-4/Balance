@@ -1,0 +1,141 @@
+:root {
+  --accent: #7C9E87;
+  --accent-bg: #F1F5F2;
+  --accent-border: #5C7A65;
+  --bg-main: #FAF8F5;
+  --text-h: #2D2520;
+  --text-p: #8C7B6E;
+  --border: #E5E1DB;
+  --white: #FFFFFF;
+  --shadow: 0 10px 25px -5px rgba(124, 158, 135, 0.2);
+}
+
+/* 전체 컨테이너 및 배경 처리 */
+.diagnosis-page {
+  background-color: #F0EBE3; /* 앱 바깥 배경 */
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-main);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 100px rgba(0,0,0,0.05);
+  position: relative;
+}
+
+/* 헤더 스타일 */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-h);
+  display: flex;
+  align-items: center;
+}
+
+/* 히어로 비주얼 영역 (3D 효과 적용) */
+.hero-visual {
+  position: relative;
+  height: 260px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.hero-visual .base-blob {
+  width: 220px;
+  height: 220px;
+  background: var(--accent-bg);
+  border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+  position: absolute;
+  z-index: 0;
+}
+
+.hero-visual .guide-img {
+  z-index: 1;
+  width: 200px;
+  /* 입체적인 3D 트랜스폼 */
+  transform: perspective(1000px) rotateY(-10deg) rotateX(5deg);
+  filter: drop-shadow(0 15px 25px rgba(0,0,0,0.1));
+  transition: transform 0.5s ease;
+}
+
+.hero-visual:hover .guide-img {
+  transform: perspective(1000px) rotateY(0deg) rotateX(0deg) scale(1.05);
+}
+
+/* 콘텐츠 중앙 정렬 (#center) */
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.title { font-size: 1.6rem; fontWeight: 900; margin: 0; letter-spacing: -0.03em; }
+.desc { color: var(--text-p); line-height: 1.6; margin: 0; word-break: keep-all; }
+
+/* 공통 버튼 스타일 (.counter 기반 수정) */
+.main-btn {
+  font-size: 1.1rem;
+  padding: 1.2rem;
+  border-radius: 16px;
+  color: var(--white);
+  background: var(--accent);
+  border: 2px solid transparent;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: var(--shadow);
+  width: 100%;
+}
+
+.main-btn:hover {
+  transform: translateY(-2px);
+  background: var(--accent-border);
+}
+
+/* 프로그레스바 및 웹캠 자리 */
+.webcam-box {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: #222;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
