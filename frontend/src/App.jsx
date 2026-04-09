@@ -9,19 +9,20 @@ import MyPage from './pages/MyPage';
 import Stretching from './pages/Stretching';
 import Setting from './pages/Setting';
 import Diagnosis from './pages/Diagnosis';
+import SideCapturePage from './pages/SideCapturePage'; // 의성님 페이지 1
+import MonitorPage from './pages/MonitorPage';       // 의성님 페이지 2
 
 // 별도로 분리한 Footer 컴포넌트 임포트
 import Footer from './components/Footer';
 
 /**
  * 1. 하단 바(Footer)를 포함하는 공통 레이아웃
- * 로그인 후의 모든 페이지는 이 레이아웃 안에서 렌더링됩니다.
  */
 function MainLayout() {
   return (
-    <div style={{ paddingBottom: '85px' }}> {/* 푸터 높이만큼 하단 여백 확보 */}
-      <Outlet /> {/* 여기에 실제 페이지 내용(MyPage 등)이 들어갑니다 */}
-      <Footer /> {/* 모든 페이지 하단에 고정되는 네비게이션 바 */}
+    <div style={{ paddingBottom: '85px' }}>
+      <Outlet />
+      <Footer />
     </div>
   );
 }
@@ -29,25 +30,29 @@ function MainLayout() {
 function App() {
   return (
     <BrowserRouter>
-      {/* 2. 모바일 프레임 설정: 모든 페이지를 감싸는 고정 너비 컨테이너 */}
       <div style={mobileFrameStyle}>
         <Routes>
-          {/* 3. 하단 바가 필요 없는 페이지 (온보딩/로그인) */}
+          {/* --- [그룹 1] 하단 바가 필요 없는 페이지 (로그인 전/특수 기능) --- */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/diagnosis" element={<Diagnosis />} />
           
-          {/* 4. 하단 바가 항상 있어야 하는 페이지 그룹 (중첩 라우팅) */}
+          {/* 팩트 체크: 로그인 전 체험 페이지는 Footer 없이 풀 스크린으로 측정에 집중하게 합니다 */}
+          <Route path="/side-capture" element={<SideCapturePage />} />
+
+          {/* --- [그룹 2] 하단 바가 항상 있어야 하는 페이지 그룹 (로그인 후 서비스) --- */}
           <Route element={<MainLayout />}>
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/stretching" element={<Stretching />} />
             <Route path="/setting" element={<Setting />} />
             
-            {/* 추가될 수 있는 설정(/settings) 등도 여기에 위치 */}
+            {/* 실시간 측정 페이지: 대시보드에서 들어오기 때문에 레이아웃 유지가 UX상 유리할 수 있음 */}
+            {/* 만약 카메라 화면을 더 크게 쓰고 싶다면 그룹 1(위쪽)로 옮기십시오. */}
+            <Route path="/monitor" element={<MonitorPage />} />
           </Route>
 
-          {/* 5. 예외 경로 처리: 잘못된 주소로 들어오면 랜딩으로 리다이렉트 */}
+          {/* 예외 경로 처리 */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
@@ -57,13 +62,13 @@ function App() {
 
 // --- 스타일링 (프레임 디자인) ---
 const mobileFrameStyle = {
-  maxWidth: '520px',      // 모바일 친화적 가로 너비 제한
-  minHeight: '100vh',     // 화면 전체 높이 사용
-  margin: '0 auto',       // 데스크탑에서 중앙 정렬
-  background: '#F9FAFB',  // 전체 배경색
+  maxWidth: '520px',
+  minHeight: '100vh',
+  margin: '0 auto',
+  background: '#F9FAFB',
   position: 'relative',
-  overflowX: 'hidden',    // 가로 스크롤 방지
-  boxShadow: '0 0 40px rgba(0,0,0,0.05)' // 화면 구분용 그림자
+  overflowX: 'hidden',
+  boxShadow: '0 0 40px rgba(0,0,0,0.05)'
 };
 
 export default App;

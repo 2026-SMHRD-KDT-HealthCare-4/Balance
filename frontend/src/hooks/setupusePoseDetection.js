@@ -1,3 +1,4 @@
+// hooks/setupusePoseDetection.js
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { initializeCapturePose, sendToCapturePose } from '../ai/mediapipe';
 import { analyzePosture } from '../ai/setupposeAnalyzer';
@@ -6,7 +7,6 @@ export const usePoseDetection = (videoRef, enabled = true) => {
   const [postureData, setPostureData] = useState({ 
     shoulderWidth: "0.0000",
     neckVerticalDist: "0.0000",
-    shoulderDiff: "0.0",
     status: '대기'
   });
 
@@ -14,39 +14,40 @@ export const usePoseDetection = (videoRef, enabled = true) => {
   const poseInstanceRef = useRef(null);
   const isClosingRef = useRef(false);
   const enabledRef = useRef(enabled);
+  
+  // ✅ 최신 postureData를 참조하기 위한 Ref (무한 루프 방지의 핵심)
+  const lastDataRef = useRef(postureData);
 
-  useEffect(() => {
-    enabledRef.current = enabled;
-  }, [enabled]);
+  useEffect(() => { enabledRef.current = enabled; }, [enabled]);
 
   const onResults = useCallback((results) => {
     if (isClosingRef.current || !enabledRef.current) return;
-
     if (results && results.poseLandmarks) {
       const analysis = analyzePosture(results.poseLandmarks);
-      if (analysis) setPostureData(analysis);
-    }
-  }, []);
+      if (analysis) {
+        // ✅ 이전 값과 비교하여 소수점 3자리까지 같으면 업데이트 하지 않음
+        const isSame = 
+          parseFloat(lastDataRef.current.shoulderWidth).toFixed(3) === parseFloat(analysis.shoulderWidth).toFixed(3) &&
+          parseFloat(lastDataRef.current.neckVerticalDist).toFixed(3) === parseFloat(analysis.neckVerticalDist).toFixed(3) &&
+          lastDataRef.current.status === analysis.status;
 
-  const detect = useCallback(async () => {
-    // 중단 조건 체크 강화
-    if (isClosingRef.current || !poseInstanceRef.current || !enabledRef.current) {
-      return;
-    }
-
-    if (
-      videoRef.current && 
-      videoRef.current.readyState >= 3 && 
-      !videoRef.current.paused
-    ) {
-      try {
-        await sendToCapturePose(videoRef.current);
-      } catch (err) {
-        if (!isClosingRef.current) console.warn("Detection loop error:", err);
+        if (!isSame) {
+          lastDataRef.current = analysis; // Ref 업데이트
+          setPostureData(analysis);      // State 업데이트 (리렌더링 발생)
+        }
       }
     }
-    
-    // 다음 프레임 요청 전 다시 확인
+  }, []); // 의존성 비움
+
+  const detect = useCallback(async () => {
+    if (isClosingRef.current || !enabledRef.current) return;
+    if (videoRef.current && videoRef.current.readyState >= 3) {
+      try {
+        await sendToCapturePose(poseInstanceRef.current, videoRef.current);
+      } catch (err) {
+        if (!err.message?.includes('deleted')) console.warn("AI Loop Error:", err);
+      }
+    }
     if (!isClosingRef.current && enabledRef.current) {
       requestRef.current = requestAnimationFrame(detect);
     }
@@ -54,22 +55,22 @@ export const usePoseDetection = (videoRef, enabled = true) => {
 
   useEffect(() => {
     isClosingRef.current = false;
-
     const initTimer = setTimeout(() => {
-      if (!isClosingRef.current) {
+      if (!isClosingRef.current && !poseInstanceRef.current) {
+        console.log("🚀 AI 모델 초기화 시작");
+        // ✅ onResults를 직접 넘겨줌
         poseInstanceRef.current = initializeCapturePose(onResults);
         detect();
       }
-    }, 200);
+    }, 500);
 
     return () => {
       isClosingRef.current = true;
       clearTimeout(initTimer);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       if (poseInstanceRef.current) {
-        const instance = poseInstanceRef.current;
+        try { poseInstanceRef.current.close(); } catch (e) {}
         poseInstanceRef.current = null;
-        instance.close();
       }
     };
   }, [onResults, detect]);

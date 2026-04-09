@@ -3,9 +3,9 @@ import { usePoseDetection } from './setupusePoseDetection';
 import { savePoseLog } from '../api/poseApi';
 
 const CONFIG = {
-  CHECK_DURATION: 60 * 1000,      // 1분간 측정
-  CHECK_INTERVAL: 60 * 60 * 1000, // 1시간 대기
-  SEND_INTERVAL: 10 * 1000        // 10초마다 서버 전송
+  CHECK_DURATION: 60 * 1000,
+  CHECK_INTERVAL: 60 * 60 * 1000,
+  SEND_INTERVAL: 10 * 1000
 };
 
 export const useScheduledPose = (videoRef) => {
@@ -13,85 +13,100 @@ export const useScheduledPose = (videoRef) => {
   const [status, setStatus] = useState('대기');
   const [currentData, setCurrentData] = useState({ sw: "0.0000", nvd: "0.0000" });
 
-  // 실시간 포즈 탐지 훅 연결
+  // ✅ 실시간 값을 타이머가 참조할 수 있도록 Ref 사용 (핵심 해결책)
+  const stateRef = useRef({ status: '대기', data: { sw: "0.0000", nvd: "0.0000" } });
+  
   const { shoulderWidth, neckVerticalDist } = usePoseDetection(videoRef, isActive);
 
-  // 1. 스케줄러 로직: 1시간마다 1분씩 활성화 (기존 유지)
+  // 1. 스케줄러 로직
   useEffect(() => {
     let checkTimer;
     const startMonitoring = () => {
       setIsActive(true);
       setStatus('측정 중');
+      console.log("%c[시스템] 모니터링 시작 (1분간 측정)", "color: #1e90ff; font-weight: bold;");
       
       checkTimer = setTimeout(() => {
         setIsActive(false);
         setStatus('휴식 시간');
+        console.log("%c[시스템] 모니터링 종료 (1시간 휴식)", "color: #ff4757; font-weight: bold;");
         setTimeout(startMonitoring, CONFIG.CHECK_INTERVAL);
       }, CONFIG.CHECK_DURATION);
     };
-
     startMonitoring();
     return () => clearTimeout(checkTimer);
   }, []);
 
-  // 2. 분석 로직: 실시간 데이터 업데이트 및 ±10% 오차 체크
+  // 2. 분석 로직 및 Ref 업데이트
   useEffect(() => {
-    // shoulderWidth가 "0.0000"이거나 null인 경우를 모두 체크
     if (!isActive || !shoulderWidth || parseFloat(shoulderWidth) === 0) return;
 
-    // 문자열로 넘어올 수 있는 데이터를 숫자로 변환
     const curSW = parseFloat(shoulderWidth);
     const curNVD = parseFloat(neckVerticalDist);
-
-    // 기준 데이터 로드
     const baseline = JSON.parse(localStorage.getItem('user_baseline'));
     
+    let newStatus = '정상';
     if (baseline) {
       const baseSW = parseFloat(baseline.baseShoulderWidth);
       const baseNVD = parseFloat(baseline.baseNeckDist);
-
-      // 오차 계산
-      const swDiff = Math.abs(curSW - baseSW) / baseSW;
-      const nvdDiff = Math.abs(curNVD - baseNVD) / baseNVD;
-
-      // 10% 이상 차이 시 주의, 아니면 정상
-      if (swDiff > 0.1 || nvdDiff > 0.1) {
-        setStatus('주의');
-      } else {
-        setStatus('정상');
+      if (Math.abs(curSW - baseSW) / baseSW > 0.1 || Math.abs(curNVD - baseNVD) / baseNVD > 0.1) {
+        newStatus = '주의';
       }
     }
 
-    // 화면 업데이트를 위한 state 설정 (문자열 포맷 유지)
-    setCurrentData({ 
-      sw: curSW.toFixed(4), 
-      nvd: curNVD.toFixed(4) 
-    });
+    // 상태와 데이터를 State와 Ref에 동시에 기록
+    const newData = { sw: curSW.toFixed(4), nvd: curNVD.toFixed(4) };
+    
+    if (status !== newStatus) setStatus(newStatus);
+    setCurrentData(newData);
+    
+    // ✅ Ref는 리렌더링과 상관없이 항상 최신값을 유지함
+    stateRef.current = { status: newStatus, data: newData };
+    
+  }, [shoulderWidth, neckVerticalDist, isActive, status]);
 
-  }, [shoulderWidth, neckVerticalDist, isActive]);
-
-  // 3. 서버 전송 로직: 10초마다 로그 저장 (기존 유지)
+  // 3. 서버 전송 로직 (Ref 참조 방식)
   useEffect(() => {
     let sendTimer;
-    if (isActive && status !== '대기' && status !== '측정 중') {
+
+    if (isActive) {
+      console.log("%c[전송 루프] 10초 주기 타이머 가동", "color: #ffa500;");
+      
       sendTimer = setInterval(async () => {
-        try {
+        // ✅ State 대신 Ref를 읽어서 현재 시점의 최신 데이터를 가져옴
+        const { status: currentStatus, data } = stateRef.current;
+
+        if (currentStatus === '정상' || currentStatus === '주의') {
           const logData = {
-            shoulderWidth: currentData.sw,
-            neckVerticalDist: currentData.nvd,
-            status: status,
-            timestamp: new Date().toISOString()
+            shoulderWidth: data.sw,
+            neckVerticalDist: data.nvd,
+            status: currentStatus,
+            timestamp: new Date().toLocaleTimeString()
           };
-          await savePoseLog(logData);
-          console.log("로그 서버 전송 성공", logData);
-        } catch (error) {
-          console.warn("로그 전송 실패 (서버 연결 확인 필요)");
+
+          console.group(`📤 서버 전송 (${logData.timestamp})`);
+          console.table(logData);
+          
+          try {
+            await savePoseLog(logData);
+            console.log("%c✅ 전송 성공", "color: #2ed573;");
+          } catch (error) {
+            console.error("❌ 전송 실패:", error.message);
+          }
+          console.groupEnd();
+        } else {
+          console.log("[전송 대기] 현재 상태가 '측정 중'이거나 데이터가 아직 없습니다.");
         }
       }, CONFIG.SEND_INTERVAL);
     }
 
-    return () => clearInterval(sendTimer);
-  }, [isActive, currentData, status]);
+    return () => {
+      if (sendTimer) {
+        clearInterval(sendTimer);
+        console.log("[전송 루프] 타이머 중단");
+      }
+    };
+  }, [isActive]); // isActive가 바뀔 때만 타이머 재설정
 
   return { status, isActive, currentData };
 };

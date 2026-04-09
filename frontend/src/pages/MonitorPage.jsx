@@ -1,20 +1,27 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useScheduledPose } from '../hooks/useScheduledPose';
 import WebcamView from '../components/WebcamView';
 
 const MonitorPage = () => {
+  // 1. Ref 설정: 초기값에 document.createElement를 직접 넣지 않음 (무한 루프 방지)
   const videoRef = useRef(null);
-  const canvasRef = useRef(document.createElement('canvas'));
-  const pipVideoRef = useRef(document.createElement('video'));
+  const canvasRef = useRef(null);
+  const pipVideoRef = useRef(null);
   
-  // 훅에서 데이터 가져오기 (currentData 추가)
+  // 2. 훅에서 데이터 가져오기
   const { status, isActive, currentData } = useScheduledPose(videoRef);
 
+  // PIP에서 최신 값을 참조하기 위한 Ref 동기화
   const statusRef = useRef(status);
   const dataRef = useRef(currentData);
   const isActiveRef = useRef(isActive);
 
   useEffect(() => {
+    // 컴포넌트 마운트 시 PIP용 엘리먼트 생성
+    if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
+    if (!pipVideoRef.current) pipVideoRef.current = document.createElement('video');
+
+    // 최신 상태값 Ref에 업데이트
     statusRef.current = status;
     dataRef.current = currentData;
     isActiveRef.current = isActive;
@@ -22,6 +29,8 @@ const MonitorPage = () => {
 
   const handleTextPIP = async () => {
     try {
+      if (!canvasRef.current || !pipVideoRef.current) return;
+
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       const pipVideo = pipVideoRef.current;
@@ -41,7 +50,7 @@ const MonitorPage = () => {
           ctx.fillText("🔵 실시간 감시 중", canvas.width / 2, 45);
 
           const curStatus = statusRef.current;
-          // 색상 결정 (주의는 주황색)
+          // 상태에 따른 색상 변경
           ctx.fillStyle = curStatus === '주의' ? '#ffa502' : (curStatus === '정상' ? '#2ed573' : '#ff4757');
           ctx.font = 'bold 40px Arial';
           ctx.fillText(`${curStatus}`, canvas.width / 2, 95);
@@ -78,9 +87,9 @@ const MonitorPage = () => {
             }
             drawFrame();
           }, 250);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("PIP 요청 실패:", e); }
       }, 100);
-    } catch (error) { console.error(error); }
+    } catch (error) { console.error("PIP 오류:", error); }
   };
 
   return (
@@ -102,13 +111,37 @@ const MonitorPage = () => {
       ) : (
         <div style={breakBoxStyle}><p>🔒 현재는 휴식 시간입니다.</p></div>
       )}
+      
     </div>
   );
 };
 
-// 스타일 (생략 가능)
-const btnStyle = { marginBottom: '30px', padding: '12px 30px', backgroundColor: '#2c3e50', color: 'white', border: 'none', borderRadius: '30px', cursor: 'pointer', fontWeight: 'bold' };
-const infoBoxStyle = { marginTop: '20px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '10px' };
-const breakBoxStyle = { height: '300px', backgroundColor: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '15px' };
+// 스타일 설정
+const btnStyle = { 
+  marginBottom: '30px', 
+  padding: '12px 30px', 
+  backgroundColor: '#2c3e50', 
+  color: 'white', 
+  border: 'none', 
+  borderRadius: '30px', 
+  cursor: 'pointer', 
+  fontWeight: 'bold' 
+};
+
+const infoBoxStyle = { 
+  marginTop: '20px', 
+  padding: '15px', 
+  backgroundColor: '#f0f8ff', 
+  borderRadius: '10px' 
+};
+
+const breakBoxStyle = { 
+  height: '300px', 
+  backgroundColor: '#eee', 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'center', 
+  borderRadius: '15px' 
+};
 
 export default MonitorPage;

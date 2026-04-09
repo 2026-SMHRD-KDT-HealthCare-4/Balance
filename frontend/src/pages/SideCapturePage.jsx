@@ -1,247 +1,214 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import * as FaIcons from "react-icons/fa";
 import WebcamView from '../components/WebcamView';
 import { initializeCapturePose, sendToCapturePose } from '../ai/mediapipe';
 import { useNeckDiagnostic } from '../hooks/useNeckDiagnostic';
 import { savePoseLog } from '../api/poseApi';
 
 const SideCapturePage = () => {
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const [timer, setTimer] = useState(null);
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { runAnalysis } = useNeckDiagnostic();
+
   
-  // 기능은 2번째 코드의 훅을 사용
-  const { report, runAnalysis, resetReport } = useNeckDiagnostic();
 
-  // 1. MediaPipe 결과 수신 설정 (2번째 코드 로직 유지)
-  useEffect(() => {
-    initializeCapturePose(async (results) => {
-      // 5초 카운트가 끝나고 분석 신호를 보낸 직후(timer === null)에만 실행
-      if (results && results.poseLandmarks && !isMeasuring && !isSaving) {
-        // 분석 실행 (각도 및 상태 계산)
-        const analysisResult = runAnalysis(results.poseLandmarks);
-        
-        // 분석 결과가 성공적으로 나왔다면 서버로 전송
-        if (analysisResult && !report) {
-          await handleSaveToServer(analysisResult);
-        }
+  // SideCapturePage.jsx 내의 useEffect 수정
+useEffect(() => {
+  initializeCapturePose(async (results) => {
+    // 팩트: 결과가 없으면 즉시 종료
+    if (!results || !results.poseLandmarks) return;
+
+    // 분석 실행
+    const analysisResult = runAnalysis(results.poseLandmarks);
+    
+    // 분석 결과가 존재할 때만 '딱 한 번' 실행되도록 함
+    if (analysisResult && !isSaving) {
+      console.log("📸 데이터 포착 성공:", analysisResult);
+      
+      setIsSaving(true); // 중복 실행 방지
+      
+      try {
+        // 서버 저장 (실패해도 일단 이동은 하게 처리)
+        await savePoseLog({
+          angle: analysisResult.angle,
+          status: analysisResult.status,
+        });
+      } catch (e) {
+        console.error("서버 저장 실패, 하지만 결과 페이지로 이동합니다.");
       }
-    });
-  }, [runAnalysis, isMeasuring, isSaving, report]);
 
-  // 2. 서버 저장 로직 (2번째 코드 로직 유지)
-  const handleSaveToServer = async (postureData) => {
-    setIsSaving(true);
-    try {
-      // API 파일의 savePoseLog 호출
-      await savePoseLog({
-        angle: postureData.angle,
-        status: postureData.status,
+      // 결과 데이터를 들고 Diagnosis로 즉시 이동
+      navigate('/diagnosis', { 
+        state: { result: analysisResult },
+        replace: true 
       });
-      console.log("데이터가 서버에 성공적으로 저장되었습니다.");
-    } catch (error) {
-      // 전송 실패 시 사용자에게 알림
-      alert("서버 전송에 실패했습니다. 데이터를 저장하지 못했습니다.");
-    } finally {
-      setIsSaving(false);
     }
+  });
+}, [runAnalysis, isSaving, navigate]); // isMeasuring 의존성 제거
+
+
+  // 뒤로가기 버튼 핸들러 (알림창 추가)
+  const handleBackWithConfirm = () => {
+    const leave = window.confirm("지금 나가면 측정 결과가 저장되지 않습니다. 그래도 나가시겠습니까?");
+    if (leave) navigate('/');
   };
 
-  // 3. 측정 시작 버튼 클릭 (2번째 코드 로직 유지)
   const handleStartCapture = () => {
-    resetReport();
     setIsMeasuring(true);
     setTimer(5);
   };
 
-  // 4. 5초 카운트다운 관리 (2번째 코드 로직 유지)
   useEffect(() => {
     if (timer === null) return;
-
     if (timer > 0) {
       const id = setTimeout(() => setTimer(timer - 1), 1000);
       return () => clearTimeout(id);
     } else {
-      // 0초가 되면 현재 프레임 전송 (1회)
       if (videoRef.current && videoRef.current.readyState >= 2) {
         sendToCapturePose(videoRef.current);
-      } else {
-        alert("카메라 연결 상태를 확인해주세요.");
-        setIsMeasuring(false);
       }
       setTimer(null);
       setIsMeasuring(false);
     }
   }, [timer]);
 
-  // 가이드라인 색상 고정 (실시간 감지가 없으므로 주황색으로 고정)
-  const guideColor = '#e67e22'; 
-
   return (
     <div style={containerStyle}>
       <header style={headerStyle}>
-        <h1>거북목 정밀 측정</h1>
-        <p>화면의 눈사람 실루엣에 몸을 측면으로 맞춰주세요.</p>
+        <button onClick={handleBackWithConfirm} style={backBtnStyle}>
+          <FaIcons.FaChevronLeft />
+        </button>
+        <h1 style={titleStyle}>측면 측정</h1>
+        <div style={{ width: '40px' }}></div>
       </header>
-      
-      <div style={videoWrapperStyle}>
-        {/* WebcamView는 수정 없이 사용 */}
-        <WebcamView videoRef={videoRef} />
+
+      <div style={contentAreaStyle}>
+        <p style={subTitleStyle}>실루엣에 맞춰 측면으로 서주세요.</p>
         
-        {/* ★ [요청사항] 눈사람 모양 SVG 가이드 오버레이 */}
-        {!report && (
-          <svg style={svgOverlayStyle} viewBox="0 0 640 480">
-            {/* 눈사람 모양 실루엣 Path */}
+        {/* 1. 비디오와 가이드라인을 묶는 고정 비율 컨테이너 */}
+        <div style={videoContainerStyle}>
+          
+          {/* 실제 비디오 (WebcamView 내부 video에 objectFit: cover 적용 권장) */}
+          <WebcamView videoRef={videoRef} />
+          
+          {/* 2. 가이드라인을 비디오와 완전히 겹침 */}
+          <svg style={svgOverlayStyle} viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet">
             <path
-              d="M320,30 
-                 C210,30 210,180 210,180 
-                 C130,210 120,320 120,400 
-                 C120,470 200,480 320,480 
-                 C440,480 520,470 520,400 
-                 C520,320 510,210 430,180 
-                 C430,180 430,30 320,30 Z"
-              fill="none" // 속을 비움
-              stroke={guideColor} // 주황색 선
-              strokeWidth="6" // 선 두께
-              strokeDasharray="15,10" // 점선 스타일
-              style={{ opacity: 0.6 }} // 평소에는 반투명하게
+              d="M320,30 C210,30 210,180 210,180 C130,210 120,320 120,400 C120,470 200,480 320,480 C440,480 520,470 520,400 C520,320 510,210 430,180 C430,180 430,30 320,30 Z"
+              fill="none" 
+              stroke="#e67e22" 
+              strokeWidth="6" 
+              strokeDasharray="15,10" 
+              style={{ opacity: 0.6 }}
             />
           </svg>
-        )}
 
-        {/* 하단 메시지 (실시간 감지가 없으므로 고정 메시지) */}
-        {!report && !isMeasuring && (
-          <div style={messageBoxStyle}>
-            눈사람 가이드 안으로 몸을 측면으로 맞춰주세요
-          </div>
-        )}
-
-        {/* 카운트다운 UI (2번째 코드 로직 유지) */}
-        {timer !== null && (
-          <div style={timerOverlayStyle}>
-            {timer > 0 ? timer : "📸"}
-          </div>
-        )}
+          {timer !== null && (
+            <div style={timerOverlayStyle}>{timer > 0 ? timer : "📸"}</div>
+          )}
+        </div>
       </div>
 
-      <div style={{ marginTop: '30px' }}>
-        <button 
-          onClick={handleStartCapture} 
-          disabled={isMeasuring || isSaving}
-          style={{
-            ...buttonStyle,
-            backgroundColor: (isMeasuring || isSaving) ? '#ccc' : '#4A90E2',
-            cursor: (isMeasuring || isSaving) ? 'default' : 'pointer'
-          }}
-        >
-          {isMeasuring ? "자세를 고정하세요..." : isSaving ? "저장 중..." : "진단 시작 (5초 후 캡처)"}
+      <div style={footerStyle}>
+        <button onClick={handleStartCapture} style={buttonStyle}>
+          {isMeasuring ? "자세 고정 중..." : "측정 시작"}
         </button>
       </div>
-
-      {/* 결과 리포트 섹션 (2번째 코드 로직 유지) */}
-      {report && (
-        <div style={{ ...resultCardStyle, borderColor: report.color }}>
-          <h2 style={{ color: report.color }}>진단 결과: {report.status}</h2>
-          <p style={{ fontSize: '24px', margin: '10px 0' }}>
-            측정 각도: <strong>{report.angle}°</strong>
-          </p>
-          <p style={{ color: '#666' }}>{report.comment}</p>
-          <button 
-            onClick={resetReport} 
-            style={{ marginTop: '15px', cursor: 'pointer' }}
-          >
-            다시 측정하기
-          </button>
-        </div>
-      )}
     </div>
   );
 };
 
-// --- 스타일 객체 정의 (2번째 코드 기반으로 최적화) ---
+// --- 스타일 개선: 중앙 정렬 및 가독성 최적화 ---
+
+const videoContainerStyle = {
+  position: 'relative',
+  width: '100%',
+  maxWidth: '800px', // 전체 박스 크기 조절 (카메라 너무 커지지 않게)
+  aspectRatio: '4 / 3',
+  backgroundColor: '#fff',
+  borderRadius: '24px',
+  display: 'flex', // 자식(cameraWrapper)을 중앙에 배치
+  justifyContent: 'center',
+  alignItems: 'center',
+  overflow: 'hidden',
+  margin: '0 auto'
+};
 
 const containerStyle = {
-  textAlign: 'center',
-  padding: '40px 20px',
-  fontFamily: 'apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  backgroundColor: '#f4f7f6', // 배경색 살짝 추가
-  minHeight: '100vh'
+  position: 'fixed', 
+  top: 0, 
+  left: 0, 
+  width: '100vw', 
+  height: '100vh',
+  backgroundColor: '#fff', // 전체 배경은 깔끔하게 화이트
+  zIndex: 2000, 
+  display: 'flex', 
+  flexDirection: 'column'
 };
 
 const headerStyle = {
-  marginBottom: '30px',
-  color: '#333'
+  display: 'flex', 
+  justifyContent: 'space-between', 
+  alignItems: 'center', 
+  padding: '15px 20px',
+  zIndex: 2100 // 카메라보다 위에 위치
 };
 
-const videoWrapperStyle = {
+
+
+const backBtnStyle = { background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer' };
+const titleStyle = { fontSize: '1.1rem', fontWeight: '800', margin: 0 };
+const subTitleStyle = { 
+  position: 'absolute',
+  top: '20px',
+  textAlign: 'center', 
+  color: 'black', // 카메라 위에서 잘 보이도록 화이트
+  fontSize: '1rem', 
+  fontWeight: '600',
+  textShadow: '0px 2px 4px rgba(0,0,0,0.5)', // 가독성을 위한 그림자
+  zIndex: 10
+};
+
+const contentAreaStyle = {
+  flex: 1, 
+  display: 'flex', 
+  flexDirection: 'column', 
+  justifyContent: 'center', 
+  alignItems: 'center',
+  position: 'relative', // 가이드라인과 텍스트 배치를 위해
+  overflow: 'hidden'
+};
+
+const cameraWrapperStyle = {
   position: 'relative',
-  display: 'inline-block',
-  width: '640px',
-  height: '480px',
-  borderRadius: '24px',
-  overflow: 'hidden',
-  boxShadow: '0 20px 50px rgba(0,0,0,0.2)', // 그림자 강화
-  border: '4px solid #444',
-  backgroundColor: '#000'
+  width: '100%', // 부모(videoContainer) 안에서 꽉 차게
+  height: '100%',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
 };
 
 const svgOverlayStyle = {
   position: 'absolute',
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  pointerEvents: 'none', // 클릭 이벤트가 비디오로 전달되도록 함
-  zIndex: 2 // 비디오 위에 위치
-};
-
-const messageBoxStyle = {
-  position: 'absolute',
-  bottom: '20px',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  backgroundColor: 'rgba(0,0,0,0.7)',
-  color: '#fff',
-  padding: '10px 20px',
-  borderRadius: '10px',
-  fontSize: '0.9rem',
-  fontWeight: 'bold',
-  zIndex: 3
-};
-
-const timerOverlayStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  fontSize: '120px',
-  color: 'white',
-  fontWeight: 'bold',
-  textShadow: '0 0 20px rgba(0,0,0,0.5)',
+  top: 50,
+  left: 100,
+  width: '80%', // 이제 흰 배경이 아니라 비디오 박스의 100%입니다.
+  height: 'auto',
   pointerEvents: 'none',
-  zIndex: 4
+  zIndex: 10
 };
 
-const buttonStyle = {
-  padding: '16px 40px',
-  fontSize: '20px',
-  fontWeight: 'bold',
-  color: 'white',
-  border: 'none',
-  borderRadius: '50px',
-  transition: 'all 0.3s',
-  boxShadow: '0 5px 15px rgba(0,0,0,0.1)'
+const timerOverlayStyle = { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '80px', color: '#fff', fontWeight: 'bold' };
+const footerStyle = { 
+  padding: '30px 20px', 
+  display: 'flex', 
+  justifyContent: 'center',
+  backgroundColor: '#fff'
 };
-
-const resultCardStyle = {
-  marginTop: '40px',
-  padding: '30px',
-  border: '5px solid',
-  borderRadius: '20px',
-  backgroundColor: '#fff',
-  display: 'inline-block',
-  minWidth: '350px',
-  boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
-};
+const buttonStyle = { width: '100%', maxWidth: '350px', padding: '18px', fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', backgroundColor: '#4A90E2', border: 'none', borderRadius: '16px' };
 
 export default SideCapturePage;
