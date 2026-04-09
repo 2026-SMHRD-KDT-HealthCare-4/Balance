@@ -36,8 +36,24 @@ export default function MyPage() {
 
   // 로그아웃 핸들러 복구
   const handleLogout = () => {
-    navigate('/');
-  };
+  // 브라우저 기본 확인창 띄우기
+  const isConfirmed = window.confirm("로그아웃하시겠습니까?");
+
+  if (isConfirmed) {
+    // 1. 로컬 스토리지 데이터 삭제
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // 2. 메시지 알림 (선택 사항)
+    alert("로그아웃되었습니다.");
+    
+    // 3. 메인 페이지나 로그인 페이지로 이동
+    navigate('/', { replace: true });
+  } else {
+    // 사용자가 '취소'를 누른 경우 아무 일도 일어나지 않음
+    console.log("로그아웃 취소");
+  }
+};
 
   return (
     <div style={{ ...s.layout, background: current.bgColor }}>

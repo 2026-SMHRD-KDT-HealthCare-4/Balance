@@ -43,7 +43,9 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'user_table',
-    timestamps: false
+    timestamps: false,
+    createdAt: 'created_at', // 실제 컬럼명 명시
+    updatedAt: false
   })
 
   User.associate = (models) => {
