@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaHome } from 'react-icons/fa';
 import { TbStretching } from 'react-icons/tb';
@@ -26,7 +26,17 @@ const CONFIG = {
 export default function MyPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [score] = useState(30); 
+  const [score] = useState(30);
+
+  // 소셜 로그인 후 URL에서 토큰 저장
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const token = params.get('token')
+    if (token) {
+      localStorage.setItem('token', token)
+      window.history.replaceState({}, '', '/mypage')
+    }
+  }, [])
 
   const current = useMemo(() => {
     if (score < 40) return CONFIG.RED;
@@ -34,56 +44,55 @@ export default function MyPage() {
     return CONFIG.GREEN;
   }, [score]);
 
-  // 로그아웃 핸들러 복구
   const handleLogout = () => {
     navigate('/');
   };
 
   return (
     <div style={{ ...s.layout, background: current.bgColor }}>
-      {/* 1. 상단 고정 헤더 - 로그아웃 기능 연결 확인 */}
+      {/* 1. 상단 고정 헤더 */}
       <header style={{ ...s.fixedHeader, background: current.bgColor }}>
         <h1 style={s.logo}>Re:balance</h1>
         <button onClick={handleLogout} style={s.logoutBtn}>로그아웃</button>
       </header>
 
       <div style={s.scrollBox}>
-        {/* 상단 텍스트 섹션: 가독성 확보 */}
+        {/* 상단 텍스트 섹션 */}
         <section style={s.llmSection}>
           <div style={{ ...s.aiBadge, color: current.color }}>AI COACH</div>
           <h2 style={s.mainGreeting}>{current.advice}</h2>
           <p style={s.llmText}>
-            현재 상태는 <b style={{color: current.color}}>{current.label}</b>입니다.
+            현재 상태는 <b style={{ color: current.color }}>{current.label}</b>입니다.
           </p>
         </section>
 
         {/* 위험 상태 배너 */}
         {score < 40 && (
           <div style={s.emergencyBanner}>
-            <span style={{flex: 1}}>⚠️ <b>긴급:</b> 1분 스트레칭이 필요합니다</span>
+            <span style={{ flex: 1 }}>⚠️ <b>긴급:</b> 1분 스트레칭이 필요합니다</span>
             <button onClick={() => navigate('/stretching')} style={s.emergencyBtn}>지금 하기</button>
           </div>
         )}
 
-        {/* 캐릭터 섹션: 크기 재조정(320px) 및 입체감 강화 */}
+        {/* 캐릭터 섹션 */}
         <section style={s.heroSection}>
           <div style={{ ...s.characterHalo, backgroundColor: current.color }} />
           <div style={s.imageWrapper}>
-            <img 
-              src={current.img} 
-              alt="character" 
-              style={{ 
-                ...s.charImg, 
+            <img
+              src={current.img}
+              alt="character"
+              style={{
+                ...s.charImg,
                 animation: current.animation,
-                filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.15))' // 크기 대신 그림자로 강조
-              }} 
+                filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.15))'
+              }}
             />
           </div>
 
           <div style={s.statusInfoRow}>
             <div style={s.statusLeft}>
               <span style={{ ...s.statusLabel, color: current.color }}>{current.label}</span>
-              <div style={s.scoreText}>{score}<small style={{fontSize: '1rem'}}>점</small></div>
+              <div style={s.scoreText}>{score}<small style={{ fontSize: '1rem' }}>점</small></div>
             </div>
             <div style={s.statusRight}>
               <p style={s.descText}>{current.desc}</p>
@@ -115,7 +124,7 @@ export default function MyPage() {
             지금 자세 측정 시작하기
           </button>
         </div>
-        
+
         <footer style={s.footer}>
           {[
             { id: 'home', label: 'HOME', path: '/mypage', icon: <FaHome /> },
@@ -148,7 +157,7 @@ const s = {
   emergencyBtn: { background: '#FFF', color: '#EF4444', border: 'none', padding: '5px 10px', borderRadius: '8px', fontWeight: '800', marginLeft: '10px' },
   heroSection: { position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 25px' },
   characterHalo: { position: 'absolute', top: '10%', width: '280px', height: '280px', borderRadius: '50%', filter: 'blur(50px)', opacity: 0.2, zIndex: 0 },
-  imageWrapper: { zIndex: 1, height: '320px', display: 'flex', alignItems: 'center', marginBottom: '10px' }, // 크기 최적화
+  imageWrapper: { zIndex: 1, height: '320px', display: 'flex', alignItems: 'center', marginBottom: '10px' },
   charImg: { height: '100%', objectFit: 'contain' },
   statusInfoRow: { width: '100%', display: 'flex', alignItems: 'center', padding: '20px 0', borderTop: '1px solid rgba(0,0,0,0.05)' },
   statusLeft: { flex: '0 0 85px', display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(0,0,0,0.05)', marginRight: '20px' },

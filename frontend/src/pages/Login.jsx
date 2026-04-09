@@ -62,6 +62,14 @@ function Login() {
     }
   }
 
+   const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:3000/api/auth/google'
+  }
+
+  const handleKakaoLogin = () => {
+    window.location.href = 'http://localhost:3000/api/auth/kakao'
+  }
+
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
@@ -111,8 +119,8 @@ function Login() {
               <div style={lineStyle} />
             </div>
 
-            <button type="button" style={googleBtnStyle}><GoogleIcon /> Google로 계속하기</button>
-            <button type="button" style={kakaoBtnStyle}><KakaoIcon /> 카카오로 계속하기</button>
+            <button type="button" onClick={handleGoogleLogin} style={googleBtnStyle}><GoogleIcon /> Google로 계속하기</button>
+            <button type="button" onClick={handleKakaoLogin} style={kakaoBtnStyle}><KakaoIcon /> 카카오로 계속하기</button>
           </form>
         ) : (
           <form onSubmit={handleSignupSubmit} style={formStyle}>
