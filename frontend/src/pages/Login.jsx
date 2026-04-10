@@ -28,10 +28,7 @@ function Login() {
     setMessage('')
   }, [currentTab])
 
-  /**
-   * 1. 로그인 핸들러
-   * 로그인 성공 시 서버에서 유저의 기존 기준값(base_...)을 가져와 로컬에 저장합니다.
-   */
+  // 로그인 — DB 연동
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
     try {
@@ -39,71 +36,45 @@ function Login() {
         login_id: loginForm.login_id,
         password: loginForm.password
       })
-      
       localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
-      
-      // [추가] 서버에 저장된 기준값이 있다면 모니터링용으로 로컬스토리지 동기화
-      if (res.data.user && res.data.user.base_neck_dist) {
-        const userBaseline = {
-          baseNeckDist: res.data.user.base_neck_dist,
-          baseShoulderWidth: res.data.user.base_shoulder_width,
-          baseShoulderDiff: res.data.user.base_shoulder_diff
-        };
-        localStorage.setItem('user_baseline', JSON.stringify(userBaseline));
-      }
-
       navigate('/mypage', { replace: true })
     } catch (err) {
       setMessage(err.response?.data?.message || '아이디 또는 비밀번호가 틀렸습니다')
     }
   }
 
-  /**
-   * 2. 회원가입 핸들러
-   * 가입 시 로컬에 저장된 진단 결과(temp_diagnosis)가 있다면 함께 서버로 쏩니다.
-   */
+  // 회원가입 — DB 연동
   const handleSignupSubmit = async (e) => {
     e.preventDefault()
     if (!agreed) return
-    
     try {
-      // [추가] 임시 저장된 진단 데이터 가져오기
-      const tempDiagnosis = JSON.parse(localStorage.getItem('temp_diagnosis'));
-      
-      const res = await axios.post('/api/auth/register', {
+      await axios.post('/api/auth/register', {
         name: signupForm.name,
         login_id: signupForm.login_id,
         email: signupForm.email,
-        password: signupForm.password,
-        // [추가] 진단 데이터가 존재할 경우 baseline 객체에 담아 전송
-        baseline: tempDiagnosis ? {
-          base_shoulder_width: tempDiagnosis.baseShoulderWidth,
-          base_neck_dist: tempDiagnosis.baseNeckDist,
-          base_shoulder_diff: tempDiagnosis.baseShoulderDiff
-        } : null
-      });
-
-      // [추가] 가입 성공 후 임시 데이터는 삭제
-      localStorage.removeItem('temp_diagnosis');
-
-      setMessage('회원가입 성공! 로그인해주세요.');
-      setSearchParams({ tab: 'login' });
+        password: signupForm.password
+      })
+      setMessage('회원가입 성공! 로그인해주세요.')
+      setSearchParams({ tab: 'login' })
     } catch (err) {
       setMessage(err.response?.data?.message || '회원가입 중 오류가 발생했습니다')
     }
   }
 
+   const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:3000/api/auth/google'
+  }
+
+  const handleKakaoLogin = () => {
+    window.location.href = 'http://localhost:3000/api/auth/kakao'
+  }
+
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
-        <div 
-          onClick={() => navigate('/')} 
-          style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }}
-        >
-          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#7C9E87', userSelect: 'none' }}>
-            Re:balance
-          </span>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#7C9E87' }}>Re:balance</span>
         </div>
 
         <div style={tabContainerStyle}>
@@ -118,6 +89,7 @@ function Login() {
           ))}
         </div>
 
+        {/* 성공/에러 메시지 */}
         {message && (
           <p style={{
             color: message.includes('성공') ? '#1D9E75' : '#f87171',
@@ -147,8 +119,8 @@ function Login() {
               <div style={lineStyle} />
             </div>
 
-            <button type="button" style={googleBtnStyle}><GoogleIcon /> Google로 계속하기</button>
-            <button type="button" style={kakaoBtnStyle}><KakaoIcon /> 카카오로 계속하기</button>
+            <button type="button" onClick={handleGoogleLogin} style={googleBtnStyle}><GoogleIcon /> Google로 계속하기</button>
+            <button type="button" onClick={handleKakaoLogin} style={kakaoBtnStyle}><KakaoIcon /> 카카오로 계속하기</button>
           </form>
         ) : (
           <form onSubmit={handleSignupSubmit} style={formStyle}>
@@ -209,7 +181,6 @@ function Login() {
   )
 }
 
-// --- 스타일 및 아이콘 컴포넌트 (기존 유지) ---
 const containerStyle = { minHeight: '100vh', background: '#FAF8F5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }
 const cardStyle = { background: '#F0EBE3', borderRadius: '20px', border: '1px solid #DDD5C8', padding: '2.5rem', width: '100%', maxWidth: '420px' }
 const tabContainerStyle = { display: 'flex', background: '#FAF8F5', borderRadius: '10px', padding: '4px', marginBottom: '2rem' }

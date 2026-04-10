@@ -16,19 +16,13 @@ const register = async (userData) => {
   // 비밀번호 해시
   const hashedPassword = await bcrypt.hash(userData.password, 10)
 
-  // 프론트엔드에서 보낸 baseline 데이터 추출
-  const { baseline } = userData;
-
   const newUser = await User.create({
     name: userData.name,
     login_id: userData.login_id,
     email: userData.email,
     password: hashedPassword,  // ← 해시된 비밀번호 저장
     provider: 'local',
-    provider_id: null,
-    base_shoulder_width: baseline ? baseline.base_shoulder_width : null,
-    base_neck_dist: baseline ? baseline.base_neck_dist : null,
-    base_shoulder_diff: baseline ? baseline.base_shoulder_diff : null
+    provider_id: null
   })
 
   return { message: '회원가입 성공' }
@@ -50,7 +44,7 @@ const login = async ({ login_id, password }) => {
   return {
     message: '로그인 성공',
     token,
-    user: { user_id: user.user_id, login_id: user.login_id, name: user.name, base_shoulder_width: user.base_shoulder_width, base_neck_dist: user.base_neck_dist, base_shoulder_diff: user.base_shoulder_diff }
+    user: { user_id: user.user_id, login_id: user.login_id, name: user.name }
   }
 }
 

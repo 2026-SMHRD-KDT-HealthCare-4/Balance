@@ -20,12 +20,6 @@ module.exports = (sequelize) => {
       type: DataTypes.FLOAT,
       allowNull: false
     },
-    // ✅ status 컬럼 추가
-    status: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-      defaultValue: '정상' // 기본값을 '정상'으로 설정
-    },
     posture_score: {
       type: DataTypes.INTEGER,
       allowNull: false,

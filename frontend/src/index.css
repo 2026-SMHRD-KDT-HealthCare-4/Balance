@@ -110,3 +110,16 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #020617;
+  margin: 0;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
