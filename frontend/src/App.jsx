@@ -52,6 +52,8 @@ function App() {
             {/* 만약 카메라 화면을 더 크게 쓰고 싶다면 그룹 1(위쪽)로 옮기십시오. */}
             <Route path="/monitor" element={<MonitorPage />} />
             <Route path="/setup" element={<InitialSetupPage />} />
+            <Route path="/initialsetuppage" element={<InitialSetupPage />} />
+            <Route path="/sidecapturepage" element={<SideCapturePage />} />
           </Route>
 
           {/* 예외 경로 처리 */}
