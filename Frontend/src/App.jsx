@@ -17,6 +17,7 @@ import StretchPage from './pages/StretchPage';
 
 // 컴포넌트 임포트
 import Footer from './components/Footer';
+import FrontCapturePage from './pages/FrontCapturePage';
 // import NotificationManager from "./components/Notification/NotificationManager";
 
 function MainLayout() {
@@ -54,6 +55,7 @@ function App() {
             
             {/* 더 이상 필요 없는 InitialSetupPage 경로는 삭제했습니다 */}
             <Route path="/sidecapturepage" element={<SideCapturePage />} />
+            <Route path="/front-capture" element={<FrontCapturePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />
