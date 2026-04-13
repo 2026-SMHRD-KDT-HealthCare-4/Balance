@@ -17,6 +17,7 @@ import StretchPage from './pages/StretchPage';
 
 // 컴포넌트 임포트
 import Footer from './components/Footer';
+// import NotificationManager from "./components/Notification/NotificationManager";
 
 function MainLayout() {
   return (
@@ -27,50 +28,37 @@ function MainLayout() {
   );
 }
 
-// 1. 라우팅 로직을 담당할 별도의 컴포넌트 생성
-function AppContent() {
-  const navigate = useNavigate();
-
-  // 스트레칭 완료 시 실행될 함수
-  const handleStretchFinish = () => {
-    console.log("스트레칭 완료! 대시보드로 이동합니다.");
-    navigate('/dashboard'); // 완료 후 대시보드로 이동
-  };
-
-  return (
-    <div style={mobileFrameStyle}>
-      <Routes>
-        {/* --- [그룹 1] 하단 바 없는 페이지 --- */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/diagnosis" element={<Diagnosis />} />
-        <Route path="/side-capture" element={<SideCapturePage />} />
-        
-        {/* ✅ onFinish prop으로 이동 함수를 전달합니다 */}
-        <Route path="/stretch" element={<StretchPage onFinish={handleStretchFinish} />} />
-
-        {/* --- [그룹 2] 하단 바 있는 페이지 --- */}
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/mypage" element={<MyPage />} />
-          <Route path="/setting" element={<Setting />} />
-          <Route path="/setup" element={<InitialSetupPage />} />
-          <Route path="/monitor" element={<MonitorPageStretch />} />
-          <Route path="/team-monitor" element={<TeamMonitorPage />} />
-          <Route path="/sidecapturepage" element={<SideCapturePage />} />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </div>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
-      {/* 2. BrowserRouter 내부에서 AppContent를 렌더링하여 useNavigate가 작동하게 함 */}
-      <AppContent />
+      {/* <NotificationManager /> */}
+      
+      <div style={mobileFrameStyle}>
+        <Routes>
+          {/* --- [그룹 1] 하단 바 없는 페이지 --- */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/diagnosis" element={<Diagnosis />} />
+          <Route path="/side-capture" element={<SideCapturePage />} />
+          <Route path="/stretch" element={<StretchPage />} />
+
+          {/* --- [그룹 2] 하단 바 있는 페이지 --- */}
+          <Route element={<MainLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/mypage" element={<MyPage />} />
+            <Route path="/setting" element={<Setting />} />
+            <Route path="/initialsetuppage" element={<InitialSetupPage />} />
+            {/* ✅ 두 가지 모니터링 페이지를 모두 유지합니다 */}
+            <Route path="/monitor" element={<MonitorPageStretch />} /> {/* 예훈님: 스트레칭 연동 모드 */}
+            <Route path="/team-monitor" element={<TeamMonitorPage />} /> {/* 팀원: PIP 알림 모드 */}
+            
+            {/* 더 이상 필요 없는 InitialSetupPage 경로는 삭제했습니다 */}
+            <Route path="/sidecapturepage" element={<SideCapturePage />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }

@@ -35,7 +35,7 @@ export default function MyPage() {
       try {
         const data = JSON.parse(rawData);
         // 여기서 실제 점수 계산 로직을 넣으세요. 우선은 30점으로 고정 테스트
-        setScore(30); 
+        setScore(50); 
       } catch (e) {
         console.error("데이터 파싱 에러", e);
       }
@@ -107,7 +107,7 @@ export default function MyPage() {
         {score < 40 && (
           <div style={s.emergencyBanner}>
             <span style={{flex: 1}}>⚠️ <b>긴급:</b> 1분 스트레칭이 필요합니다</span>
-            <button onClick={() => navigate('/stretching')} style={s.emergencyBtn}>지금 하기</button>
+            <button onClick={() => navigate('/monitor')} style={s.emergencyBtn}>지금 하기</button>
           </div>
         )}
 
@@ -151,7 +151,7 @@ export default function MyPage() {
       {/* 3. 하단 고정 버튼 영역 */}
       <div style={s.fixedBottomArea}>
         <div style={s.buttonGrid}>
-          <button onClick={() => navigate('/monitor')} style={s.subBtn}>
+          <button onClick={() => navigate('/team-monitor')} style={s.subBtn}>
             자세 모니터링
           </button>
           <button onClick={() => navigate('/initialsetuppage')} style={s.mainBtn}>
