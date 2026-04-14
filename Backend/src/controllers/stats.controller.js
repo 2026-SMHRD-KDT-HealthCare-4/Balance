@@ -19,4 +19,30 @@ const getMonthly = async (req, res, next) => {
   }
 };
 
-module.exports = { getWeekly, getMonthly };
+// 🔥 추가된 함수 1: 최근 리포트 가져오기
+const getLatestReport = async (req, res, next) => {
+  try {
+    const result = await statsService.getLatestReport(req.user.user_id);
+    res.status(200).json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+// 🔥 추가된 함수 2: 잔디 데이터(활동량) 가져오기
+const getUsageGrass = async (req, res, next) => {
+  try {
+    const result = await statsService.getUsageGrass(req.user.user_id);
+    res.status(200).json(result);
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ✅ 반드시 내보내는 객체에 새로 만든 함수들을 포함시켜야 합니다!
+module.exports = { 
+  getWeekly, 
+  getMonthly, 
+  getLatestReport, 
+  getUsageGrass 
+};

@@ -3,6 +3,7 @@ const app = require('./app')
 // [수정] database 설정 파일 대신, 모델이 통합된 index.js를 불러옵니다.
 const { sequelize } = require('./models/index') 
 const fs = require('fs')
+const postureService = require('./services/posture.service');
 
 // uploads 폴더 설정
 const uploadDirs = ['../uploads/posture', '../uploads/stretching']
@@ -10,7 +11,7 @@ uploadDirs.forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 })
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
 
 sequelize
   .authenticate()

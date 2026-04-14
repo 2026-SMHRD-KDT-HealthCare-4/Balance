@@ -36,6 +36,8 @@ const SideCapturePage = () => {
           date: new Date().toISOString()
         };
 
+        console.log('[token 확인]', token);
+
         try {
           if (token) {
             // 회원: 즉시 저장
@@ -46,6 +48,7 @@ const SideCapturePage = () => {
           } else {
             // 비회원: 임시 저장
             localStorage.setItem('temp_side_pose', JSON.stringify(poseData));
+            console.log('[비회원 임시저장 완료]', poseData);
           }
         } catch (e) {
           console.error("데이터 저장 실패", e);

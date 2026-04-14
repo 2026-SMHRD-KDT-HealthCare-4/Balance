@@ -32,9 +32,11 @@ function Login() {
   /**
    * 비회원 측정 데이터를 서버로 연동하는 공통 함수
    */
-  const syncTempPoseData = async () => {
-  const frontData = localStorage.getItem('temp_front_pose');
-  const sideData = localStorage.getItem('temp_side_pose');
+  const syncTempPoseData = async (token) => {
+    const frontData = localStorage.getItem('temp_front_pose');
+    const sideData = localStorage.getItem('temp_side_pose');
+    
+    if (!token) return;
 
   try {
     if (frontData) {
@@ -44,9 +46,10 @@ function Login() {
         status: parsed.status,
         type: 'front'
       }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       localStorage.removeItem('temp_front_pose');
+      console.log("정면 데이터 연동 완료");
     }
 
     if (sideData) {
@@ -56,9 +59,10 @@ function Login() {
         status: parsed.status,
         type: 'side'
       }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       localStorage.removeItem('temp_side_pose');
+      console.log("측면 데이터 연동 완료");
     }
   } catch (err) {
     console.error("데이터 연동 중 에러:", err);
@@ -73,13 +77,15 @@ function Login() {
         login_id: loginForm.login_id,
         password: loginForm.password
       })
+
+      const receivedToken = res.data.token; // 변수에 먼저 담기
       
       // 1. 토큰 및 유저정보 저장
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('token', receivedToken)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       
       // 2. 비회원 측정 데이터가 있다면 서버로 전송
-      await syncTempPoseData();
+      await syncTempPoseData(receivedToken);
 
       navigate('/mypage', { replace: true })
     } catch (err) {
@@ -92,11 +98,16 @@ function Login() {
     e.preventDefault()
     if (!agreed) return
     try {
+      // 1. 로컬 스토리지에서 비회원 식별용 ID 가져오기
+    const tempId = localStorage.getItem('temp_id'); 
+
+    // 2. 가입 시 tempId를 payload에 포함해서 전송
       await axios.post('/api/auth/register', {
         name: signupForm.name,
         login_id: signupForm.login_id,
         email: signupForm.email,
-        password: signupForm.password
+        password: signupForm.password,
+        tempId: tempId // ✅ 백엔드 서비스에서 처리할 ID
       })
 
       // 회원가입 성공 후 바로 로그인을 시키는 구조라면 여기서 syncTempPoseData()를 호출하고,
@@ -162,8 +173,21 @@ function Login() {
               <div style={lineStyle} />
             </div>
 
-            <button type="button" style={googleBtnStyle}><GoogleIcon /> Google로 계속하기</button>
-            <button type="button" style={kakaoBtnStyle}><KakaoIcon /> 카카오로 계속하기</button>
+            <button
+              type="button"
+              style={googleBtnStyle}
+              onClick={() => window.location.href = 'http://localhost:3000/api/auth/google'}
+            >
+              <GoogleIcon /> Google로 계속하기
+            </button>
+
+            <button
+              type="button"
+              style={kakaoBtnStyle}
+              onClick={() => window.location.href = 'http://localhost:3000/api/auth/kakao'}
+            >
+              <KakaoIcon /> 카카오로 계속하기
+            </button>
           </form>
         ) : (
           <form onSubmit={handleSignupSubmit} style={formStyle}>
@@ -196,19 +220,32 @@ function Login() {
               <div ref={scrollRef} onScroll={handleScroll} style={termsBoxStyle}>
                 <strong style={{ color: '#2D2520' }}>개인정보 수집 및 이용 동의</strong>
                 <br /><br />
-                Re:balance는 거북목 예방 및 자세 교정 서비스를 제공하기 위해 다음과 같이 개인정보를 수집·이용합니다.
+                Re:balance는 실시간 거북목 감지 및 자세 교정 서비스를 제공하기 위해 아래와 같이 개인정보를 처리합니다.
                 <br /><br />
-                <strong style={{ color: '#2D2520' }}>1. 영상 처리 방식</strong><br />
-                촬영된 영상은 서버에 저장되지 않으며, 신체 좌표값만 추출합니다.
+
+                <strong style={{ color: '#2D2520' }}>1. 카메라 접근 및 사용 (필수)</strong><br />
+                • <b>목적:</b> 사용자의 관절 랜드마크 추출을 통한 실시간 자세 분석<br />
+                • <b>방식:</b> 기기 내(On-Device) 실시간 분석 수행
                 <br /><br />
-                <strong style={{ color: '#2D2520' }}>2. 보유 및 이용 기간</strong><br />
-                회원 탈퇴 시 즉시 삭제됩니다.
+
+                <strong style={{ color: '#2D2520' }}>2. 영상 데이터 보안</strong><br />
+                • <b>미저장 원칙:</b> 촬영되는 영상은 서버로 전송되지 않으며, 분석 즉시 휘발됩니다.<br />
+                • <b>추출 정보:</b> 영상 자체가 아닌, 익명화된 신체 좌표값(포인트)만을 활용합니다.
                 <br /><br />
-                위 내용을 모두 확인하였습니다.
+
+                <strong style={{ color: '#2D2520' }}>3. 보유 및 이용 기간</strong><br />
+                • 수집된 좌표 데이터는 서비스 이용 종료 또는 회원 탈퇴 시 즉시 파기됩니다.
+                <br /><br />
+
+                위 내용을 모두 확인하였으며, 서비스 제공을 위한 카메라 접근 및 데이터 활용에 동의합니다.
               </div>
               <label style={{ ...checkboxLabelStyle, opacity: scrollDone ? 1 : 0.4, cursor: scrollDone ? 'pointer' : 'not-allowed' }}>
-                <input type="checkbox" disabled={!scrollDone} checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)} />
+                <input 
+                  type="checkbox" 
+                  disabled={!scrollDone} 
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)} 
+                />
                 개인정보 수집 및 이용에 동의합니다
               </label>
             </div>

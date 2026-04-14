@@ -10,7 +10,17 @@ module.exports = (sequelize) => {
     },
     user_id: {
       type: DataTypes.INTEGER(10),
-      allowNull: false
+      allowNull: true,
+      references: {
+      model: 'user_table', // 실제 유저 테이블명
+      key: 'user_id'
+    },
+    onDelete: 'SET NULL', // 유저가 삭제되면 이 필드를 NULL로 만듦
+    onUpdate: 'CASCADE'
+    },
+    temp_uuid: {
+      type: DataTypes.STRING(100),
+      allowNull: true // 비회원일 때만 사용함
     },
     start_time: {
       type: DataTypes.DATE,
@@ -20,16 +30,6 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true
     },
-    upright_posture_photo: {
-      // 정자세 기준 사진 경로
-      type: DataTypes.STRING(100),
-      allowNull: true
-    },
-    random_photo: {
-      // 랜덤 측정 사진 경로
-      type: DataTypes.STRING(100),
-      allowNull: true
-    }
   }, {
     tableName: 'sessions_table',
     timestamps: false
@@ -37,7 +37,8 @@ module.exports = (sequelize) => {
 
   Session.associate = (models) => {
     Session.belongsTo(models.User, {
-      foreignKey: 'user_id'
+      foreignKey: 'user_id',
+      constraints: false
     })
     Session.hasMany(models.PostureData, {
       foreignKey: 'session_id'

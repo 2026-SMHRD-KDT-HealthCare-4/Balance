@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios'; // ✅ API 호출을 위해 추가
 import { FaHome } from 'react-icons/fa';
 import { TbStretching } from 'react-icons/tb';
 import { FcStatistics } from 'react-icons/fc';
@@ -26,39 +27,54 @@ const CONFIG = {
 export default function MyPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // ✅ 상태 관리: 50점 고정 대신 초기값 0으로 설정
   const [score, setScore] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 페이지에 진입할 때마다 로컬 스토리지에서 최신 측정값을 가져와 점수 계산
-    const rawData = localStorage.getItem('user_baseline');
-    if (rawData) {
+    const fetchLatestPosture = async () => {
       try {
-        const data = JSON.parse(rawData);
-        // 여기서 실제 점수 계산 로직을 넣으세요. 우선은 30점으로 고정 테스트
-        setScore(50); 
-      } catch (e) {
-        console.error("데이터 파싱 에러", e);
-      }
-    }
-  }, []); // 컴포넌트 마운트 시 실행
+        setLoading(true);
+        const token = localStorage.getItem('token'); // 0. 토큰 가져오기
 
-  // 일주일 주기 로직: 기록이 없거나 7일이 지났으면 true
+        // 1. 헤더에 토큰 실어서 요청
+        const response = await axios.get('http://localhost:3000/api/posture/latest', {
+          headers: {
+            Authorization: `Bearer ${token}` 
+          }
+        });
+
+        if (response.data && response.data.posture_score !== undefined) {
+          setScore(response.data.posture_score); 
+        }
+      } catch (e) {
+        console.error("데이터 호출 실패 (401 등):", e);
+        // 토큰 만료 시 로그인 페이지로 튕기기 (선택)
+        if (e.response?.status === 401) navigate('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLatestPosture();
+  }, [navigate]);
+
+
+  // 일주일 주기 로직
   const needsSideCapture = useMemo(() => {
     const lastDate = localStorage.getItem('lastSideCaptureDate');
     if (!lastDate) return true; 
-
-    const last = new Date(lastDate).getTime();
-    const now = new Date().getTime();
-    const diffDays = (now - last) / (1000 * 60 * 60 * 24);
-    
+    const diffDays = (new Date().getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24);
     return diffDays >= 7; 
   }, []);
 
+  // 점수에 따른 UI 설정 계산
   const current = useMemo(() => {
     if (score < 40) return CONFIG.RED;
     if (score < 70) return CONFIG.YELLOW;
     return CONFIG.GREEN;
-  }, [score]) || CONFIG.GREEN;
+  }, [score]);
 
   const handleLogout = () => {
     if (window.confirm("로그아웃하시겠습니까?")) {
@@ -68,27 +84,25 @@ export default function MyPage() {
     }
   };
 
-  if (!current) return <div>Loading...</div>;
+  if (loading) return <div style={{...s.layout, justifyContent: 'center', alignItems: 'center'}}>분석 데이터를 불러오는 중...</div>;
 
   return (
-    <div style={{ ...s.layout, background: current?.bgColor || '#FFF' }}>
-      {/* 1. 상단 고정 헤더 */}
+    <div style={{ ...s.layout, background: current.bgColor }}>
       <header style={{ ...s.fixedHeader, background: current.bgColor }}>
         <h1 style={s.logo}>Re:balance</h1>
         <button onClick={handleLogout} style={s.logoutBtn}>로그아웃</button>
       </header>
 
-      {/* 2. 스크롤 본문 영역 */}
       <div style={s.scrollBox}>
         <section style={s.llmSection}>
           <div style={{ ...s.aiBadge, color: current.color }}>AI COACH</div>
+          {/* AI 처방전은 대시보드로 갔으므로, 여기선 상태에 따른 고정 Advice 출력 */}
           <h2 style={s.mainGreeting}>{current.advice}</h2>
           <p style={s.llmText}>
             현재 상태는 <b style={{color: current.color}}>{current.label}</b>입니다.
           </p>
         </section>
 
-        {/* [중요] 일주일 한 번 뜨는 측면 촬영 배너 */}
         {needsSideCapture && (
           <div style={s.sideCaptureBanner}>
             <div style={s.sideCaptureTextArea}>
@@ -96,7 +110,7 @@ export default function MyPage() {
               <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>정확한 개선도를 확인해보세요</span>
             </div>
             <button 
-              onClick={() => navigate('/sidecapturepage', { state: { from: 'mypage' }})} 
+              onClick={() => navigate('/sidecapturepage')} 
               style={s.sideCaptureBtn}
             >
               촬영하기
@@ -148,7 +162,6 @@ export default function MyPage() {
         </section>
       </div>
 
-      {/* 3. 하단 고정 버튼 영역 */}
       <div style={s.fixedBottomArea}>
         <div style={s.buttonGrid}>
           <button onClick={() => navigate('/team-monitor')} style={s.subBtn}>
@@ -160,7 +173,6 @@ export default function MyPage() {
         </div>
       </div>
         
-      {/* 4. 내비게이션 푸터 */}
       <footer style={s.footer}>
         {[
           { id: 'home', label: 'HOME', path: '/mypage', icon: <FaHome /> },
@@ -188,12 +200,9 @@ const s = {
   aiBadge: { display: 'inline-block', padding: '4px 8px', background: 'rgba(255,255,255,0.8)', borderRadius: '6px', fontSize: '0.65rem', fontWeight: '800', marginBottom: '8px' },
   mainGreeting: { fontSize: '1.4rem', fontWeight: '800', color: '#1F2937', margin: '0 0 5px 0' },
   llmText: { fontSize: '0.9rem', color: '#6B7280', margin: 0 },
-  
-  // 파란 상자 (측면 촬영 배너) 스타일
   sideCaptureBanner: { background: '#4F46E5', color: '#FFF', padding: '18px 20px', borderRadius: '20px', display: 'flex', alignItems: 'center', margin: '10px 25px', boxShadow: '0 10px 20px rgba(79, 70, 229, 0.2)' },
   sideCaptureTextArea: { flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' },
   sideCaptureBtn: { background: '#FFF', color: '#4F46E5', border: 'none', padding: '10px 16px', borderRadius: '12px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer' },
-
   emergencyBanner: { background: '#EF4444', color: '#FFF', padding: '12px 16px', borderRadius: '16px', display: 'flex', alignItems: 'center', margin: '10px 25px', fontSize: '0.85rem' },
   emergencyBtn: { background: '#FFF', color: '#EF4444', border: 'none', padding: '5px 10px', borderRadius: '8px', fontWeight: '800', marginLeft: '10px' },
   heroSection: { position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 25px' },
@@ -212,13 +221,10 @@ const s = {
   infoCard: { background: 'rgba(255,255,255,0.6)', padding: '1.2rem', borderRadius: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.4)' },
   infoLabel: { fontSize: '0.7rem', color: '#9CA3AF', marginBottom: '4px' },
   infoVal: { fontSize: '1rem', fontWeight: '800' },
-  
   fixedBottomArea: { position: 'absolute', bottom: '80px', left: 0, right: 0, padding: '20px 25px 15px', zIndex: 10, background: 'linear-gradient(to top, rgba(255,255,255,1) 70%, rgba(255,255,255,0) 100%)' },
   buttonGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' },
-  // 보라색 버튼으로 수정 (디자인 오류 방지)
   subBtn: { width: '100%', padding: '1.1rem 0', background: '#4F46E5', color: '#FFFFFF', border: 'none', borderRadius: '18px', fontSize: '0.95rem', fontWeight: '800', boxShadow: '0 8px 15px rgba(0,0,0,0.1)', cursor: 'pointer' },
   mainBtn: { width: '100%', padding: '1.1rem 0', background: '#DCFCE7', color: '#166534', border: 'none', borderRadius: '18px', fontSize: '0.95rem', fontWeight: '800', boxShadow: '0 8px 15px rgba(0,0,0,0.1)', cursor: 'pointer' },
-  
   footer: { height: '80px', background: '#D9D3D0', display: 'flex', borderTopLeftRadius: '25px', borderTopRightRadius: '25px', flexShrink: 0, zIndex: 1000 },
   navItem: (active) => ({ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: active ? '#000' : '#717171', cursor: 'pointer' })
 };

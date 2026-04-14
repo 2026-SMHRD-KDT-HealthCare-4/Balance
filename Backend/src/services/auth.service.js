@@ -1,44 +1,83 @@
-// src/services/auth.service.js
 const bcrypt = require('bcrypt')
 const { sign } = require('../config/jwt')
-const { User } = require('../models')
+const { User, Session, AiReport, sequelize } = require('../models')
 
 // 회원가입
 const register = async (userData) => {
-  // 중복 아이디 체크
-  const exists = await User.findOne({ where: { login_id: userData.login_id } })
+  console.log("가입 요청 데이터:", userData);
+
+  const { login_id, email, password, name, tempId } = userData;
+
+  // 1. 중복 체크 (트랜잭션 시작 전 수행하여 부하 감소)
+  const exists = await User.findOne({ where: { login_id } })
   if (exists) throw { status: 409, message: '이미 사용 중인 아이디입니다' }
 
-  // 중복 이메일 체크
-  const emailExists = await User.findOne({ where: { email: userData.email } })
+  const emailExists = await User.findOne({ where: { email } })
   if (emailExists) throw { status: 409, message: '이미 사용 중인 이메일입니다' }
 
-  // 비밀번호 해시
-  const hashedPassword = await bcrypt.hash(userData.password, 10)
+  const hashedPassword = await bcrypt.hash(password, 10)
 
-  const newUser = await User.create({
-    name: userData.name,
-    login_id: userData.login_id,
-    email: userData.email,
-    password: hashedPassword,  // ← 해시된 비밀번호 저장
-    provider: 'local',
-    provider_id: null
-  })
+  // 2. 트랜잭션 시작
+  const t = await sequelize.transaction();
 
-  return { message: '회원가입 성공' }
+  try {
+    // [A] 유저 생성
+    const newUser = await User.create({
+      name,
+      login_id,
+      email,
+      password: hashedPassword,
+      provider: 'local',
+      provider_id: null
+    }, { transaction: t });
+
+    // [B] 비회원 데이터 이관
+    if (tempId) {
+      console.log("데이터 이관 시도 중, tempId:", tempId);
+      await Session.update(
+        { user_id: newUser.user_id }, 
+        { where: { temp_uuid: tempId }, transaction: t }
+      );
+    }
+
+    // [C] 초기 AI 리포트 생성
+    await AiReport.create({
+      user_id: newUser.user_id,
+      report_text: `${name}님, 환영합니다! 분석을 시작합니다.`,
+      prescription_text: "데이터 연동이 완료되었습니다. 대시보드를 확인해보세요!",
+      score: 0,
+      balance_shoulder: 0,
+      balance_neck: 0,
+      balance_head: 0,
+      compliance_score: 0,
+      accuracy_score: 0,
+      report_type: 'daily'
+    }, { transaction: t });
+
+    // 모든 작업 성공 시 커밋
+    await t.commit();
+
+    return { 
+      message: '가입 성공',
+      user_id: newUser.user_id
+    }
+
+  } catch (error) {
+    // 롤백 (t가 정의된 후 에러가 나야 하므로 try-catch 필수)
+    if (t) await t.rollback();
+    console.error("Register Service Error:", error);
+    throw { status: 500, message: '회원가입 처리 중 서버 오류가 발생했습니다' };
+  }
 }
 
 // 로그인
 const login = async ({ login_id, password }) => {
-  // login_id로 유저 찾기
   const user = await User.findOne({ where: { login_id } })
   if (!user) throw { status: 401, message: '아이디 또는 비밀번호가 일치하지 않습니다' }
 
-  // bcrypt로 비밀번호 비교  ← 평문 비교 대신
   const isMatch = await bcrypt.compare(password, user.password)
   if (!isMatch) throw { status: 401, message: '아이디 또는 비밀번호가 일치하지 않습니다' }
 
-  // JWT 토큰 발급
   const token = sign({ user_id: user.user_id, login_id: user.login_id })
 
   return {

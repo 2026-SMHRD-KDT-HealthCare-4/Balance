@@ -14,11 +14,11 @@ module.exports = (sequelize) => {
     },
     neck_angle: {
       type: DataTypes.FLOAT,
-      allowNull: false
+      allowNull: true
     },
     shoulder_angle: {
       type: DataTypes.FLOAT,
-      allowNull: false
+      allowNull: true
     },
     posture_score: {
       type: DataTypes.INTEGER,
