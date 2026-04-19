@@ -1,0 +1,28 @@
+﻿node_modules/
+
+# env
+.env
+.env.*
+
+# uploads
+uploads/
+
+# build
+dist/
+build/
+
+# logs
+*.log
+logs
+npm-debug.log*
+
+# cache
+.cache
+.tmp
+
+# test
+coverage
+
+# OS
+.DS_Store
+Thumbs.db
